@@ -1,5 +1,5 @@
 from time import time
-from printable import Printable
+from util.printable import Printable
 
 
 class JeniBlock(Printable):

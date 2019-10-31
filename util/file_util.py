@@ -1,12 +1,12 @@
 import json
 from transactions import Transaction
 from jeniblock import JeniBlock
-#from jenichain import JeniChain
 
 
 class FileHandler:
 
-    def save_jenichain(self, jenichain):
+    @staticmethod
+    def save_jenichain(jenichain):
         try:
             with open("blockchain.txt", mode="w") as f:
                 saveable_chain = [block.__dict__ for block
@@ -24,7 +24,8 @@ class FileHandler:
         except IOError:
             print("Savong failed!")
 
-    def load_data(self, jenichain, open_transactions):
+    @staticmethod
+    def load_data(jenichain, open_transactions):
         try:
             with open("blockchain.txt", mode="r") as f:
                 file_content = f.readlines()
@@ -35,7 +36,7 @@ class FileHandler:
                     index = block["index"]
                     proof = block["proof"]
                     timestamp = block["timestamp"]
-                    transactions = [Transaction(transaction["sender"], transaction["recipient"], transaction["amount"])
+                    transactions = [Transaction(transaction["sender"], transaction["recipient"], transaction["signature"], transaction["amount"])
                                     for transaction in block["transactions"]]
 
                     updated_block = JeniBlock(index, previous_hash, transactions, proof, timestamp)
@@ -44,7 +45,8 @@ class FileHandler:
                 open_transactions = json.loads(file_content[1])
                 updated_transactions = []
                 for transaction in open_transactions:
-                    updated_transaction = Transaction(transaction["sender"], transaction["recipient"], transaction["amount"])
+                    updated_transaction = Transaction(transaction["sender"], transaction["recipient"],
+                                                      transaction["signature"], transaction["amount"])
                     updated_transactions.append(updated_transaction)
 
                 jenichain = updated_jenichain

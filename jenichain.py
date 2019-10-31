@@ -1,9 +1,10 @@
 import functools
-import hash_util
-from file_util import FileHandler
+from util import hash_util
+from util.file_util import FileHandler
 from transactions import Transaction
 from jeniblock import JeniBlock
-from verification import Verification
+from util.verification import Verification
+from wallet import Wallet
 
 
 class JeniChain:
@@ -16,16 +17,27 @@ class JeniChain:
         self.chain, self.open_transactions = FileHandler.load_data(self.chain, self.open_transactions)
         self.node = node
 
+    @property
+    def chain(self):
+        return self.__chain[:]
+
+    @chain.setter
+    def chain(self, chain):
+        self.__chain = chain
+
     def get_last_entry(self):
         return self.chain[-1]
 
-    def add_transaction(self, sender, recipient, amount):
-        transaction = Transaction(sender, recipient, amount)
-        if Verification.verify_transaction(self.chain, transaction, self.open_transactions, self.get_balance):
-            self.open_transactions.append(transaction)
-            FileHandler.save_jenichain(self.chain, self.open_transactions)
+    def add_transaction(self, sender, recipient, signature, amount):
+        transaction = Transaction(sender, recipient, signature, amount)
+        if Wallet.verify_signture(transaction):
+            if Verification.verify_transaction(transaction, sender, self.get_balance):
+                self.open_transactions.append(transaction)
+                FileHandler.save_jenichain(self)
+            else:
+                print("This Transaction is not possible, as it exceeds your balance!")
         else:
-            print("This Transaction is not possible, as it exceeds your balance!")
+            print("The Signature of this transaction is not valid")
 
     def proof_of_work(self, hash_value):
         nounce = 0
@@ -39,22 +51,32 @@ class JeniChain:
         hash_value = hash_util.hash_block(last_block)
         proof = self.proof_of_work(hash_value)
 
-        mining_transaction = Transaction("MINING", self.node, self.MINING_REWARD)
+        mining_transaction = Transaction("MINING", self.node, "", self.MINING_REWARD)
         self.open_transactions.append(mining_transaction)
 
         block = JeniBlock(len(self.chain), hash_value, self.open_transactions, proof)
-        self.chain.append(block)
-        self.open_transactions = []
-        FileHandler.save_jenichain(self)
+        if self.transaction_signature_is_valid(block):
+            self.__chain.append(block)
+            self.open_transactions = []
+            FileHandler.save_jenichain(self)
+        else:
+            print("Fehler: Die Transactionen wurden geändert")
 
-    def get_balance(self):
+    @staticmethod
+    def transaction_signature_is_valid(block):
+        for transaction in block.transactions:
+            if not Wallet.verify_signture(transaction):
+                return False
+        return True
+
+    def get_balance(self, participant):
         amounts_send = [[transaction.amount for transaction in block.transactions
-                         if transaction.sender == self.node] for block in self.chain]
+                         if transaction.sender == participant] for block in self.chain]
         amounts_send_in_progress = [transaction.amount for transaction in self.open_transactions
-                                    if transaction.sender == self.node]
+                                    if transaction.sender == participant]
         amounts_send.append(amounts_send_in_progress)
         amounts_recieved = [[transaction.amount for transaction in block.transactions
-                             if transaction.recipient == self.node] for block in self.chain]
+                             if transaction.recipient == participant] for block in self.chain]
 
         # function, list, start index
         amount_recieved = functools.reduce(lambda summe, amounts: summe + sum(amounts)
@@ -64,10 +86,12 @@ class JeniChain:
 
         return amount_recieved - amount_send
 
-    def get_initial_entry(self):
+    @staticmethod
+    def get_initial_entry():
         return JeniBlock(0, "", [], 100, 0)
 
-    def sum_numbers_in_list(self, number_list):
+    @staticmethod
+    def sum_numbers_in_list(number_list):
         list_sum = 0
         for element in number_list:
             if len(element) > 0:
