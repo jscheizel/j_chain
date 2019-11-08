@@ -2,13 +2,13 @@ import functools
 from util import hash_util
 from util.file_util import FileHandler
 from transactions import Transaction
-from jeniblock import JeniBlock
+from jblock import JBlock
 from util.verification import Verification
 from wallet import Wallet
 import requests
 
 
-class JeniChain:
+class J_Chain:
 
     MINING_REWARD = 1
 
@@ -39,7 +39,7 @@ class JeniChain:
         if Wallet.verify_signture(transaction):
             if Verification.verify_transaction(transaction, sender, self.get_balance):
                 self.open_transactions.append(transaction)
-                FileHandler.save_jenichain(self)
+                FileHandler.save_j_chain(self)
                 if not broadcast:
                     for node in self.__peer_nodes:
                         url = "http://{}/broadcast-transaction".format(node)
@@ -77,11 +77,11 @@ class JeniChain:
         mining_transaction = Transaction("MINING", self.node, "", self.MINING_REWARD)
         self.open_transactions.append(mining_transaction)
 
-        block = JeniBlock(len(self.chain), hash_value, self.open_transactions, proof)
+        block = JBlock(len(self.chain), hash_value, self.open_transactions, proof)
         if self.transaction_signature_is_valid(block):
             self.__chain.append(block)
             self.open_transactions = []
-            FileHandler.save_jenichain(self)
+            FileHandler.save_j_chain(self)
             for node in self.__peer_nodes:
                 url = "http://{}/broadcast-block".format(node)
                 try:
@@ -132,7 +132,7 @@ class JeniChain:
         hashes_match = hash_util.hash_block(self.chain[-1]) == block["previous_hash"]
         if not proof_is_valid or not hashes_match:
             return False
-        converted_block = JeniBlock(block["index"], block["previous_hash"], transactions, block["proof"], block["timestamp"])
+        converted_block = JBlock(block["index"], block["previous_hash"], transactions, block["proof"], block["timestamp"])
         self.__chain.append(converted_block)
         stored_transactions = self.open_transactions[:]
         for incoming in block["transactions"]:
@@ -145,7 +145,7 @@ class JeniChain:
                         self.open_transactions.remove(open_transaction)
                     except ValueError:
                         print("item already removed")
-        FileHandler.save_jenichain(self)
+        FileHandler.save_j_chain(self)
         return True
 
     def resolve(self):
@@ -156,13 +156,13 @@ class JeniChain:
             try:
                 response = requests.get(url)
                 node_chain = response.json()
-                node_chain = [JeniBlock(block["index"], block["previous_hash"],
-                                        [Transaction(transaction["sender"], transaction["recipient"], transaction["signature"], transaction["amount"]) for transaction in block["transactions"]],
-                                        block["proof"], block["timestamp"]) for block in node_chain]
+                node_chain = [JBlock(block["index"], block["previous_hash"],
+                                     [Transaction(transaction["sender"], transaction["recipient"], transaction["signature"], transaction["amount"]) for transaction in block["transactions"]],
+                                     block["proof"], block["timestamp"]) for block in node_chain]
 
                 node_chain_lenght = len(node_chain)
                 local_chain_lenght = len(self.chain)
-                if node_chain_lenght > local_chain_lenght and Verification.validate_jenichain(node_chain):
+                if node_chain_lenght > local_chain_lenght and Verification.validate_j_chain(node_chain):
                     winner_chain = node_chain
                     replace = True
             except requests.exceptions.ConnectionError:
@@ -171,12 +171,12 @@ class JeniChain:
         self.chain = winner_chain
         if replace:
             self.open_transactions = []
-        FileHandler.save_jenichain(self)
+        FileHandler.save_j_chain(self)
         return replace
 
     @staticmethod
     def get_initial_entry():
-        return JeniBlock(0, "", [], 100, 0)
+        return JBlock(0, "", [], 100, 0)
 
     @staticmethod
     def sum_numbers_in_list(number_list):
@@ -188,11 +188,11 @@ class JeniChain:
 
     def add_peer_node(self, node):
         self.__peer_nodes.add(node)
-        FileHandler.save_jenichain(self)
+        FileHandler.save_j_chain(self)
 
     def remove_peer_node(self, node):
         self.__peer_nodes.discard(node)
-        FileHandler.save_jenichain(self)
+        FileHandler.save_j_chain(self)
 
     def get_peer_nodes(self):
         return list(self.__peer_nodes)

@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_from_directory
 from wallet import Wallet
 from flask_cors import CORS
-from jenichain import JeniChain
+from j_chain import J_Chain
 
 
 app = Flask(__name__)
@@ -23,12 +23,12 @@ def create_keys():
     wallet.create_keys()
     # participants.append(wallet.public_key)
     if wallet.save_keys():
-        global jenichain
-        jenichain = JeniChain(wallet.public_key, port)
+        global j_chain
+        j_chain = J_Chain(wallet.public_key, port)
         response = {
             "public_key": wallet.public_key,
             "private_key": wallet.private_key,
-            "funds": jenichain.get_balance(wallet.public_key)
+            "funds": j_chain.get_balance(wallet.public_key)
         }
         return jsonify(response), 201
     else:
@@ -42,12 +42,12 @@ def create_keys():
 def load_keys():
     # participants.append(wallet.public_key)
     if wallet.load_key():
-        global jenichain
-        jenichain = JeniChain(wallet.public_key, port)
+        global j_chain
+        j_chain = J_Chain(wallet.public_key, port)
         response = {
             "public_key": wallet.public_key,
             "private_key": wallet.private_key,
-            "funds": jenichain.get_balance(wallet.public_key)
+            "funds": j_chain.get_balance(wallet.public_key)
         }
         return jsonify(response), 201
     else:
@@ -70,7 +70,7 @@ def add_transaction():
     recipient = values["recipient"]
     amount = values["amount"]
     signature = wallet.sign_transaction(wallet.public_key, recipient, amount)
-    success = jenichain.add_transaction(wallet.public_key, recipient, signature, amount)
+    success = j_chain.add_transaction(wallet.public_key, recipient, signature, amount)
     if success:
         response = {
             "message": "Transaction successfully added",
@@ -78,7 +78,7 @@ def add_transaction():
             "recipient": recipient,
             "amount": amount,
             "signature": signature,
-            "funds": jenichain.get_balance(wallet.public_key)
+            "funds": j_chain.get_balance(wallet.public_key)
         }
         return jsonify(response), 201
     else:
@@ -90,7 +90,7 @@ def add_transaction():
 
 @app.route("/balance", methods=["GET"])
 def get_balance():
-    balance = jenichain.get_balance(wallet.public_key)
+    balance = j_chain.get_balance(wallet.public_key)
     if balance is not None:
         response = {
             "message": "Balance fetched successfully",
@@ -107,7 +107,7 @@ def get_balance():
 
 @app.route("/resolve", methods=["POST"])
 def resolve_conflicts():
-    replaces = jenichain.resolve()
+    replaces = j_chain.resolve()
     if replaces:
         response = {"message": "Chain was replaced"}
     else:
@@ -117,17 +117,17 @@ def resolve_conflicts():
 
 @app.route("/mine", methods=["POST"])
 def mine():
-    if jenichain.resolve_conflicts:
+    if j_chain.resolve_conflicts:
         response = {"message": "Resolfe conflicts first, block not added"}
         return jsonify(response), 409
-    block = jenichain.mine_block()
+    block = j_chain.mine_block()
     if block is not None:
         block_dict = block.__dict__.copy()
         block_dict["transactions"] = [transaction.__dict__ for transaction in block_dict["transactions"]]
         response = {
             "message": "Block added successfully",
             "block": block_dict,
-            "funds": jenichain.get_balance(wallet.public_key)
+            "funds": j_chain.get_balance(wallet.public_key)
         }
         return jsonify(response), 200
     else:
@@ -140,7 +140,7 @@ def mine():
 
 @app.route("/chain", methods=["GET"])
 def get_chain():
-    chain = jenichain.chain
+    chain = j_chain.chain
     chain_dict = [block.__dict__.copy() for block in chain]
     for block_dict in chain_dict:
         block_dict["transactions"] = [transaction.__dict__ for transaction in block_dict["transactions"]]
@@ -149,7 +149,7 @@ def get_chain():
 
 @app.route("/transactions", methods=["GET"])
 def get_open_transactions():
-    transactions = jenichain.open_transactions
+    transactions = j_chain.open_transactions
     transactions_dict = [transaction.__dict__.copy() for transaction in transactions]
     return jsonify(transactions_dict), 200
 
@@ -165,17 +165,17 @@ def add_node():
         return jsonify(response), 400
     else:
         node = values["node"]
-        jenichain.add_peer_node(node)
+        j_chain.add_peer_node(node)
         response = {
             "message": "Node successfully added",
-            "all_nodes": jenichain.get_peer_nodes()
+            "all_nodes": j_chain.get_peer_nodes()
         }
         return jsonify(response), 201
 
 
 @app.route("/nodes", methods=["GET"])
 def get_nodes():
-    nodes = jenichain.get_peer_nodes()
+    nodes = j_chain.get_peer_nodes()
     response = {
         "all_nodes": nodes
     }
@@ -190,10 +190,10 @@ def remove_node(node_url):
         }
         return jsonify(response), 400
     else:
-        jenichain.remove_peer_node(node_url)
+        j_chain.remove_peer_node(node_url)
         response = {
             "message": "Node removed",
-            "all_nodes": jenichain.get_peer_nodes()
+            "all_nodes": j_chain.get_peer_nodes()
         }
         return jsonify(response), 200
 
@@ -208,7 +208,7 @@ def braodcast_transaction():
     if not all(key in values for key in required):
         response = {"message": "Data is missing"}
         return jsonify(response), 400
-    success = jenichain.add_transaction(values["sender"], values["recipient"], values["signature"], values["amount"], broadcast=True)
+    success = j_chain.add_transaction(values["sender"], values["recipient"], values["signature"], values["amount"], broadcast=True)
     if success:
         response = {
             "message": "Transaction successfully added",
@@ -235,16 +235,16 @@ def braodcast_block():
         response = {"message": "Data is missing"}
         return jsonify(response), 400
     block = values["block"]
-    if block["index"] == jenichain.chain[-1].index +1:
-        success = jenichain.add_block(block)
+    if block["index"] == j_chain.chain[-1].index +1:
+        success = j_chain.add_block(block)
         if success:
             response = {"message": "Block added"}
             return jsonify(response), 201
         else:
             response = {"message": "Block invalid?"}
             return jsonify(response), 409
-    elif block["index"] > jenichain.chain[-1].index +1:
-        jenichain.resolve_conflicts = True
+    elif block["index"] > j_chain.chain[-1].index +1:
+        j_chain.resolve_conflicts = True
         response = {"message": "Blockchain seems to differ from local blockchain"}
         return jsonify(response), 200
     else:  # <
@@ -259,5 +259,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     port = args.port
     wallet = Wallet(port)
-    jenichain = JeniChain(wallet.public_key, port)
+    j_chain = J_Chain(wallet.public_key, port)
     app.run(host="0.0.0.0", port=port)

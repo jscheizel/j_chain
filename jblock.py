@@ -2,7 +2,7 @@ from time import time
 from util.printable import Printable
 
 
-class JeniBlock(Printable):
+class JBlock(Printable):
 
     def __init__(self, index, previous_hash, transactions, proof, timestamp=None):
         self.proof = proof

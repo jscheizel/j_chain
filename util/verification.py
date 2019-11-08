@@ -5,10 +5,10 @@ import hashlib
 class Verification:
 
     @classmethod
-    def validate_jenichain(cls, chain):
-        for (jeni_index, block) in enumerate(chain):
-            if jeni_index > 0:
-                if block.previous_hash != hash_util.hash_block(chain[jeni_index - 1]):
+    def validate_j_chain(cls, chain):
+        for (index, block) in enumerate(chain):
+            if index > 0:
+                if block.previous_hash != hash_util.hash_block(chain[index - 1]):
                     print("Die chain wurde geändert")
                     return False
                 if not cls.check_valid_proof(block.transactions[:-1], block.previous_hash, block.proof):
