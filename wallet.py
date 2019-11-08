@@ -6,32 +6,38 @@ import binascii
 
 class Wallet:
 
-    def __init__(self):
+    def __init__(self, port):
         self.private_key = None
         self.public_key = None
+        self.port = port
 
     def create_keys(self):
         private_key, public_key = self.generate_keys()
         self.private_key = private_key
         self.public_key = public_key
 
+    # TODO move to file util
     def save_keys(self):
         try:
-            with open("wallet.txt", mode="w") as f:
+            with open("wallet-{}.txt".format(self.port), mode="w") as f:
                 f.write(self.public_key)
                 f.write("\n")
                 f.write(self.private_key)
+                return True
         except IOError:
             print("saving keys failed")
+            return False
 
     def load_key(self):
         try:
-            with open("wallet.txt", mode="r") as f:
+            with open("wallet-{}.txt".format(self.port), mode="r") as f:
                 keys = f.readlines()
                 self.public_key = keys[0][:-1]
                 self.private_key = keys[1]
+                return True
         except IOError:
             print("loading keys failed")
+            return False
 
     @staticmethod
     def generate_keys():

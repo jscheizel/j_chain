@@ -45,7 +45,7 @@ class Node:
             else:
                 print("This action is not available!")
 
-            if not Verification.validate_jenichain(self.jenichain):
+            if not Verification.validate_jenichain(self.jenichain.chain):
                 break
 
     def load_or_create_wallet(self):

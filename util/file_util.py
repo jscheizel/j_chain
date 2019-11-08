@@ -8,7 +8,7 @@ class FileHandler:
     @staticmethod
     def save_jenichain(jenichain):
         try:
-            with open("blockchain.txt", mode="w") as f:
+            with open("blockchain-{}.txt".format(jenichain.port), mode="w") as f:
                 saveable_chain = [block.__dict__ for block
                                   in [JeniBlock(block_element.index,
                                                 block_element.previous_hash,
@@ -19,15 +19,19 @@ class FileHandler:
 
                 f.write(json.dumps(saveable_chain))
                 f.write("\n")
+
                 saveable_transactions = [transaction.__dict__ for transaction in jenichain.open_transactions]
                 f.write(json.dumps(saveable_transactions))
+
+                f.write("\n")
+                f.write(json.dumps(jenichain.get_peer_nodes()))
         except IOError:
-            print("Savong failed!")
+            print("Saving failed!")
 
     @staticmethod
-    def load_data(jenichain, open_transactions):
+    def load_data(jenichain, open_transactions, peer_nodes, port):
         try:
-            with open("blockchain.txt", mode="r") as f:
+            with open("blockchain-{}.txt".format(port), mode="r") as f:
                 file_content = f.readlines()
                 blockchain = json.loads(file_content[0][:-1])
                 updated_jenichain = []
@@ -42,7 +46,7 @@ class FileHandler:
                     updated_block = JeniBlock(index, previous_hash, transactions, proof, timestamp)
                     updated_jenichain.append(updated_block)
 
-                open_transactions = json.loads(file_content[1])
+                open_transactions = json.loads(file_content[1][:-1])
                 updated_transactions = []
                 for transaction in open_transactions:
                     updated_transaction = Transaction(transaction["sender"], transaction["recipient"],
@@ -51,7 +55,11 @@ class FileHandler:
 
                 jenichain = updated_jenichain
                 open_transactions = updated_transactions
+                peer_nodes = set(json.loads(file_content[2]))
+
         except (IOError, IndexError):
             print("File not found: Make file")
+            f = open("blockchain-{}.txt".format(port), mode="w+")
+            f.close()
 
-        return jenichain, open_transactions
+        return jenichain, open_transactions, peer_nodes
